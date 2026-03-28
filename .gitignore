@@ -5,3 +5,4 @@
 /docs
 /src/schema/data
 /src/main.rs
+*.json

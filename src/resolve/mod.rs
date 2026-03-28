@@ -18,7 +18,8 @@ type ScopeId = usize;
 
 pub struct ResolutionOptions {
     pub expand_select_wildcards: bool,
-    pub accumulate_dependencies: bool,
+    pub qualify_columns: bool,
+    pub qualify_tables: bool,
 }
 
 pub struct Resolver<T: SchemaProvider> {

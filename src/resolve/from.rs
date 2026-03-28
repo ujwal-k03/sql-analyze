@@ -13,7 +13,6 @@ impl<'a, T: SchemaProvider> Resolver<T> {
         // println!("Checking table factor: {}", table_with_join.relation.to_string());
         self.resolve_table_factor(&mut table_with_join.relation)?;
 
-
         // Iterate over the joins
         for join in &mut table_with_join.joins {
             // println!("Checking Table factor: {}", join.relation.to_string());
