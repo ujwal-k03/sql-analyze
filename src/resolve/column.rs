@@ -1,5 +1,6 @@
 use crate::resolve::errors::ResolutionError;
 use crate::resolve::scope::sources::Source;
+use crate::resolve::scope::ColumnRef;
 use crate::resolve::Resolver;
 use crate::schema::SchemaProvider;
 use sqlparser::ast::{Ident, ObjectNamePart};
@@ -9,7 +10,7 @@ impl<'a, T: SchemaProvider> Resolver<T> {
     pub(crate) fn resolve_col(
         &mut self,
         ident_vec: &mut Vec<Ident>,
-        accumulator: &mut Option<&mut HashSet<String>>,
+        accumulator: &mut Option<&mut HashSet<ColumnRef>>,
     ) -> Result<Vec<Ident>, ResolutionError> {
         // println!("Resolving col: {:?}", ident_vec);
         let source_name: Vec<ObjectNamePart> = ident_vec.iter().take(ident_vec.len() - 1).map(|x| -> ObjectNamePart {
@@ -36,7 +37,10 @@ impl<'a, T: SchemaProvider> Resolver<T> {
 
             if let Some(resolved_col) = resolved_col {
                 if let Some(accumulator) = accumulator {
-                    accumulator.insert(format!("{}.{}", resolved_col[0].value, resolved_col[1].value));
+                    accumulator.insert(ColumnRef {
+                        source_name: resolved_col[0].value.clone(),
+                        name: resolved_col[1].value.clone(),
+                    });
                 }
                 return Ok(resolved_col);
             }

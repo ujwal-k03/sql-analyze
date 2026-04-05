@@ -89,11 +89,11 @@ impl<'a, T: SchemaProvider> Resolver<T> {
 
         // Handle Cte column aliases
         if cte.alias.columns.len() > 0 {
-            if cte.alias.columns.len() != self.scopes[cte_scope].outer_columns.len() {
+            if cte.alias.columns.len() != self.scopes[cte_scope].selected_columns.len() {
                 return Err(ResolutionError::AliasLengthMismatch(cte.alias.name.value.clone()));
             } else {
                 for (i, col) in cte.alias.columns.iter().enumerate() {
-                    self.scopes[cte_scope].outer_columns[i].name.replace_range(.., &col.name.value);
+                    self.scopes[cte_scope].selected_columns[i].name.replace_range(.., &col.name.value);
                 }
             }
         }

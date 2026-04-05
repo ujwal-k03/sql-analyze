@@ -181,7 +181,7 @@ impl ScopeSource {
         name: &str,
         alias: &Option<TableAlias>
     ) -> Result<ScopeSource, ResolutionError> {
-        let mut columns: Vec<String> = Vec::with_capacity(scope.outer_columns.len());
+        let mut columns: Vec<String> = Vec::with_capacity(scope.selected_columns.len());
         let correlation_name = if let Some(table_alias) = alias {
             table_alias.name.value.clone()
         } else {
@@ -189,7 +189,7 @@ impl ScopeSource {
         };
 
         if let Some(table_alias) = alias && table_alias.columns.len() > 0 {
-            if table_alias.columns.len() != scope.outer_columns.len() {
+            if table_alias.columns.len() != scope.selected_columns.len() {
                 return Err(ResolutionError::AliasLengthMismatch(table_alias.to_string()));
             } else {
                 for column in table_alias.columns.iter() {
@@ -197,7 +197,7 @@ impl ScopeSource {
                 }
             }
         } else {
-            for resolved_col in scope.outer_columns.iter() {
+            for resolved_col in scope.selected_columns.iter() {
                 columns.push(resolved_col.name.clone());
             }
         }

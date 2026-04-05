@@ -1,5 +1,5 @@
 use crate::resolve::errors::ResolutionError;
-use crate::resolve::scope::ResolvedColumn;
+use crate::resolve::scope::{ColumnRef, SelectedColumn};
 use crate::resolve::{Resolver, ScopeType};
 use crate::schema::SchemaProvider;
 use sqlparser::ast::{Expr, Ident, Select, SelectItem, SelectItemQualifiedWildcardKind};
@@ -36,11 +36,11 @@ impl<'a, T: SchemaProvider> Resolver<T> {
                         _ => {expr.to_string()}
                     };
 
-                    let mut accumulator: HashSet<String> = HashSet::new();
+                    let mut accumulator: HashSet<ColumnRef> = HashSet::new();
                     self.resolve_expr(expr, &mut Some(&mut accumulator))?;
 
-                    self.active_scope().outer_columns.push(ResolvedColumn{
-                        name: outer_name.clone(),
+                    self.active_scope().selected_columns.push(SelectedColumn{
+                        name: outer_name,
                         dependencies: accumulator,
                     });
 
@@ -49,10 +49,10 @@ impl<'a, T: SchemaProvider> Resolver<T> {
                 SelectItem::ExprWithAlias { expr, alias} => {
                     let outer_name = alias.value.clone();
 
-                    let mut accumulator: HashSet<String> = HashSet::new();
+                    let mut accumulator: HashSet<ColumnRef> = HashSet::new();
                     self.resolve_expr(expr, &mut Some(&mut accumulator))?;
 
-                    self.active_scope().outer_columns.push(ResolvedColumn{
+                    self.active_scope().selected_columns.push(SelectedColumn{
                         name: outer_name.clone(),
                         dependencies: accumulator,
                     });
@@ -66,10 +66,13 @@ impl<'a, T: SchemaProvider> Resolver<T> {
                             let expanded_columns = self.resolve_wildcard(Some(obj_name), Some(options))?;
 
                             for column in expanded_columns {
-                                let mut accumulator: HashSet<String> = HashSet::with_capacity(1);
-                                accumulator.insert(format!("{}.{}", column.0, column.1));
+                                let mut accumulator: HashSet<ColumnRef> = HashSet::with_capacity(1);
+                                accumulator.insert(ColumnRef {
+                                    source_name: column.0.clone(),
+                                    name: column.1.clone(),
+                                });
 
-                                self.active_scope().outer_columns.push(ResolvedColumn{
+                                self.active_scope().selected_columns.push(SelectedColumn{
                                     name: column.1.clone(),
                                     dependencies: accumulator
                                 });
@@ -90,10 +93,13 @@ impl<'a, T: SchemaProvider> Resolver<T> {
                     let expanded_columns = self.resolve_wildcard(None, Some(options))?;
 
                     for column in expanded_columns {
-                        let mut accumulator: HashSet<String> = HashSet::with_capacity(1);
-                        accumulator.insert(format!("{}.{}", column.0, column.1));
+                        let mut accumulator: HashSet<ColumnRef> = HashSet::with_capacity(1);
+                        accumulator.insert(ColumnRef {
+                            source_name: column.0.clone(),
+                            name: column.1.clone(),
+                        });
 
-                        self.active_scope().outer_columns.push(ResolvedColumn{
+                        self.active_scope().selected_columns.push(SelectedColumn{
                             name: column.1.clone(),
                             dependencies: accumulator
                         });

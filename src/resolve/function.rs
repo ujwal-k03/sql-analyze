@@ -1,4 +1,5 @@
 use crate::resolve::errors::ResolutionError;
+use crate::resolve::scope::ColumnRef;
 use crate::resolve::{Resolver, ScopeType};
 use crate::schema::SchemaProvider;
 use sqlparser::ast::{Function, FunctionArg, FunctionArgExpr, FunctionArguments};
@@ -8,7 +9,7 @@ impl<'a, T: SchemaProvider> Resolver<T> {
     pub(crate) fn resolve_function(
         &mut self,
         function: &mut Function,
-        accumulator: &mut Option<&mut HashSet<String>>,
+        accumulator: &mut Option<&mut HashSet<ColumnRef>>,
     ) -> Result<(), ResolutionError> {
         match &mut function.args {
             FunctionArguments::None => {}
@@ -28,7 +29,10 @@ impl<'a, T: SchemaProvider> Resolver<T> {
 
                                     if let Some(accumulator) = accumulator {
                                         for column in expanded_columns {
-                                            accumulator.insert(format!("{}.{}", column.0, column.1));
+                                            accumulator.insert(ColumnRef {
+                                                source_name: column.0,
+                                                name: column.1,
+                                            });
                                         }
                                     }
                                 }
@@ -37,7 +41,10 @@ impl<'a, T: SchemaProvider> Resolver<T> {
 
                                     if let Some(accumulator) = accumulator {
                                         for column in expanded_columns {
-                                            accumulator.insert(format!("{}.{}", column.0, column.1));
+                                            accumulator.insert(ColumnRef {
+                                                source_name: column.0,
+                                                name: column.1,
+                                            });
                                         }
                                     }
                                 }

@@ -1,4 +1,5 @@
 use crate::resolve::errors::ResolutionError;
+use crate::resolve::scope::ColumnRef;
 use crate::resolve::{Resolver, ScopeType};
 use crate::schema::SchemaProvider;
 use sqlparser::ast::{AccessExpr, Expr, Subscript};
@@ -9,7 +10,7 @@ impl<'a, T: SchemaProvider> Resolver<T> {
     pub(crate) fn resolve_expr(
         &mut self,
         expr: &mut Expr,
-        accumulator: &mut Option<&mut HashSet<String>>,
+        accumulator: &mut Option<&mut HashSet<ColumnRef>>,
     ) -> Result<(), ResolutionError> {
         match expr {
             // === Direct subquery containers (create new scope) ===
@@ -214,7 +215,7 @@ impl<'a, T: SchemaProvider> Resolver<T> {
     pub(crate) fn resolve_expr_slice(
         &mut self,
         exprs: &mut [Expr],
-        accumulator: &mut Option<&mut HashSet<String>>,
+        accumulator: &mut Option<&mut HashSet<ColumnRef>>,
     ) -> Result<(), ResolutionError>{
         for e in exprs.as_mut() {
             self.resolve_expr(e, accumulator)?

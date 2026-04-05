@@ -11,7 +11,8 @@ mod scope;
 use sqlparser::ast::Statement;
 
 use crate::resolve::errors::ResolutionError;
-use crate::resolve::scope::{ResolvedScope, ScopeType};
+use crate::resolve::scope::ResolvedScope;
+use crate::resolve::scope::ScopeType;
 use crate::schema::SchemaProvider;
 
 type ScopeId = usize;
@@ -42,8 +43,12 @@ impl<'a, T: SchemaProvider> Resolver<T> {
                 children: Default::default(),
                 parent: 0,
                 scope_type: ScopeType::Boundary,
-                outer_columns: Default::default(),
+                selected_columns: Default::default(),
                 sources: Default::default(),
+                join_columns: Default::default(),
+                group_by_columns: Default::default(),
+                filter_columns: Default::default(),
+                sort_columns: Default::default(),
                 allow_lateral: false,
                 ctes: Default::default(),
             }],
@@ -70,8 +75,12 @@ impl<'a, T: SchemaProvider> Resolver<T> {
             children: Vec::new(),
             parent: parent_id,
             scope_type,
-            outer_columns: Default::default(),
+            selected_columns: Default::default(),
             sources: Default::default(),
+            join_columns: Default::default(),
+            group_by_columns: Default::default(),
+            filter_columns: Default::default(),
+            sort_columns: Default::default(),
             allow_lateral,
             ctes: Default::default(),
         });
