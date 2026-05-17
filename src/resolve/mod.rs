@@ -35,23 +35,10 @@ impl<'a, T: SchemaProvider> Resolver<T> {
     /// Initialize a resolver with a single boundary scope
     ///
     /// This initial boundary scope helps avoid Option<ScopeId> in the code
-    fn new(schema_provider: T, options: ResolutionOptions) -> Resolver<T> {
+    pub(crate) fn new(schema_provider: T, options: ResolutionOptions) -> Resolver<T> {
         Resolver {
             schema_provider,
-            scopes: vec![ResolvedScope{
-                id: 0,
-                children: Default::default(),
-                parent: 0,
-                scope_type: ScopeType::Boundary,
-                selected_columns: Default::default(),
-                sources: Default::default(),
-                join_columns: Default::default(),
-                group_by_columns: Default::default(),
-                filter_columns: Default::default(),
-                sort_columns: Default::default(),
-                allow_lateral: false,
-                ctes: Default::default(),
-            }],
+            scopes: vec![ResolvedScope::new(0, 0, ScopeType::Boundary, false)],
             active_scope: 0,
             visible_scopes: vec![0],
             options,
@@ -70,21 +57,7 @@ impl<'a, T: SchemaProvider> Resolver<T> {
         let new_id = self.scopes.len();
         let parent_id = self.active_scope;
 
-        self.scopes.push(ResolvedScope{
-            id: new_id,
-            children: Vec::new(),
-            parent: parent_id,
-            scope_type,
-            selected_columns: Default::default(),
-            sources: Default::default(),
-            join_columns: Default::default(),
-            group_by_columns: Default::default(),
-            filter_columns: Default::default(),
-            sort_columns: Default::default(),
-            allow_lateral,
-            ctes: Default::default(),
-        });
-
+        self.scopes.push(ResolvedScope::new(new_id, parent_id, scope_type, allow_lateral));
 
         self.scopes[parent_id].children.push(new_id);
         self.active_scope = new_id;

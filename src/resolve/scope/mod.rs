@@ -41,3 +41,27 @@ pub struct ResolvedScope {
     pub allow_lateral: bool,
     pub ctes: HashMap<String, ScopeId>
 }
+
+impl ResolvedScope {
+    pub fn new(
+        id: ScopeId,
+        parent: ScopeId,
+        scope_type: ScopeType,
+        allow_lateral: bool
+    ) -> ResolvedScope {
+        ResolvedScope{
+            id: id,
+            children: Default::default(),
+            parent: parent,
+            scope_type: scope_type,
+            selected_columns: Default::default(),
+            sources: Default::default(),
+            join_columns: Default::default(),
+            group_by_columns: Default::default(),
+            filter_columns: Default::default(),
+            sort_columns: Default::default(),
+            allow_lateral: allow_lateral,
+            ctes: Default::default(),
+        }
+    }
+}

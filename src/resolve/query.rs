@@ -130,7 +130,7 @@ impl<'a, T: SchemaProvider> Resolver<T> {
         if let Some(interpolate) = &mut order_by.interpolate {
             if let Some(exprs) = &mut interpolate.exprs {
                 for expr in exprs {
-                    self.resolve_col(&mut vec![expr.column.clone()], &mut None)?;
+                    self.resolve_col(&expr.column, &[], &mut None)?;
                     if let Some(expr) = &mut expr.expr {
                         self.resolve_expr(expr, &mut None)?;
                     }

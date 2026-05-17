@@ -132,3 +132,10 @@ impl<'a, T: SchemaProvider> Resolver<T> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    
+}

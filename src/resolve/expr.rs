@@ -2,7 +2,7 @@ use crate::resolve::errors::ResolutionError;
 use crate::resolve::scope::ColumnRef;
 use crate::resolve::{Resolver, ScopeType};
 use crate::schema::SchemaProvider;
-use sqlparser::ast::{AccessExpr, Expr, Subscript};
+use sqlparser::ast::{AccessExpr, Expr, ObjectNamePart, Subscript};
 use std::collections::HashSet;
 
 impl<'a, T: SchemaProvider> Resolver<T> {
@@ -191,10 +191,15 @@ impl<'a, T: SchemaProvider> Resolver<T> {
             }
             // No nested Expr (or handled elsewhere)
             Expr::Identifier(ident) => {
-                *expr = Expr::CompoundIdentifier(self.resolve_col(&mut vec![ident.clone()], accumulator)?)
+                *expr = Expr::CompoundIdentifier(self.resolve_col(ident, &[], accumulator)?)
             }
             Expr::CompoundIdentifier(ident_vec) => {
-                *expr = Expr::CompoundIdentifier(self.resolve_col(ident_vec, accumulator)?);
+                let col_ident = &ident_vec[ident_vec.len() - 1].clone();
+                let source_name: Vec<ObjectNamePart> = ident_vec[..ident_vec.len() - 1]
+                    .iter()
+                    .map(|x| ObjectNamePart::Identifier(x.clone()))
+                    .collect();
+                *expr = Expr::CompoundIdentifier(self.resolve_col(col_ident, &source_name, accumulator)?);
             }
             | Expr::Value(_) // No recurse
             | Expr::Wildcard(_) // Should I expand this?
