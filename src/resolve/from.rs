@@ -1,10 +1,10 @@
 use crate::resolve::errors::ResolutionError;
 use crate::resolve::scope::sources::{ResolvedSource, ScopeSource, Source, TableSource};
-use crate::resolve::{Resolver, ScopeType};
+use crate::resolve::{ResolutionContext, ScopeType};
 use crate::schema::SchemaProvider;
 use sqlparser::ast::{Ident, JoinConstraint, JoinOperator, ObjectNamePart, TableAlias, TableFactor, TableWithJoins};
 
-impl<'a, T: SchemaProvider> Resolver<T> {
+impl<'r, T: SchemaProvider> ResolutionContext<'r, T> {
     pub(crate) fn resolve_table_with_joins(
         &mut self,
         table_with_join: &mut TableWithJoins,
@@ -42,7 +42,7 @@ impl<'a, T: SchemaProvider> Resolver<T> {
                 | JoinOperator::OuterApply => {}
 
                 JoinOperator::AsOf { match_condition, constraint } => {
-                    self.resolve_expr(match_condition, &mut None)?;
+                    self.resolve_expr(match_condition)?;
                     self.resolve_join_constraint(constraint)?;
                 }
             }
@@ -58,7 +58,7 @@ impl<'a, T: SchemaProvider> Resolver<T> {
     ) -> Result<(), ResolutionError> {
         match constraint {
             JoinConstraint::On(expr) => {
-                self.resolve_expr(expr, &mut None)
+                self.resolve_expr(expr)
             }
             JoinConstraint::Using(_)
             | JoinConstraint::Natural
@@ -119,7 +119,7 @@ impl<'a, T: SchemaProvider> Resolver<T> {
                     }
                 }
 
-                if let Some(schema) = self.schema_provider.get_schema(&table_ident) {
+                if let Some(schema) = self.resolver.schema_provider.get_schema(&table_ident) {
                     let source = TableSource::from_schema(table_ident, schema, alias)?;
 
                     self.register_aliased_source(ResolvedSource::Table(source), alias);
@@ -149,7 +149,7 @@ impl<'a, T: SchemaProvider> Resolver<T> {
             }
             TableFactor::TableFunction { expr, ..} => {
                 // TODO: CAN ALSO BE A SOURCE
-                self.resolve_expr(expr, &mut None)?;
+                self.resolve_expr(expr)?;
             }
             TableFactor::Function {..} => {
                 // TODO: Later
@@ -157,7 +157,7 @@ impl<'a, T: SchemaProvider> Resolver<T> {
             }
             TableFactor::UNNEST { array_exprs, ..} => {
                 // TODO: CAN ALSO BE A SOURCE
-                self.resolve_expr_slice(array_exprs, &mut None)?;
+                self.resolve_expr_slice(array_exprs)?;
             }
             TableFactor::NestedJoin { table_with_joins, ..} => {
                 self.resolve_table_with_joins(table_with_joins)?;

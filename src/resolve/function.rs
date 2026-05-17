@@ -1,15 +1,12 @@
 use crate::resolve::errors::ResolutionError;
-use crate::resolve::scope::ColumnRef;
-use crate::resolve::{Resolver, ScopeType};
+use crate::resolve::{ResolutionContext, ScopeType};
 use crate::schema::SchemaProvider;
 use sqlparser::ast::{Function, FunctionArg, FunctionArgExpr, FunctionArguments};
-use std::collections::HashSet;
 
-impl<'a, T: SchemaProvider> Resolver<T> {
+impl<'r, T: SchemaProvider> ResolutionContext<'r, T> {
     pub(crate) fn resolve_function(
         &mut self,
         function: &mut Function,
-        accumulator: &mut Option<&mut HashSet<ColumnRef>>,
     ) -> Result<(), ResolutionError> {
         match &mut function.args {
             FunctionArguments::None => {}
@@ -23,30 +20,13 @@ impl<'a, T: SchemaProvider> Resolver<T> {
                         | FunctionArg::ExprNamed{arg, ..}
                         | FunctionArg::Unnamed(arg) => {
                             match arg {
-                                FunctionArgExpr::Expr(expr) => self.resolve_expr(expr, accumulator)?,
+                                FunctionArgExpr::Expr(expr) => self.resolve_expr(expr)?,
                                 FunctionArgExpr::Wildcard => {
-                                    let expanded_columns = self.resolve_wildcard(None, None)?;
-
-                                    if let Some(accumulator) = accumulator {
-                                        for column in expanded_columns {
-                                            accumulator.insert(ColumnRef {
-                                                source_name: column.0,
-                                                name: column.1,
-                                            });
-                                        }
-                                    }
+                                    // Auto-registers expanded columns via record_column.
+                                    self.resolve_wildcard(None, None)?;
                                 }
                                 FunctionArgExpr::QualifiedWildcard(obj_name) => {
-                                    let expanded_columns = self.resolve_wildcard(Some(obj_name), None)?;
-
-                                    if let Some(accumulator) = accumulator {
-                                        for column in expanded_columns {
-                                            accumulator.insert(ColumnRef {
-                                                source_name: column.0,
-                                                name: column.1,
-                                            });
-                                        }
-                                    }
+                                    self.resolve_wildcard(Some(obj_name), None)?;
                                 }
                             }
                         }

@@ -1,11 +1,11 @@
 use crate::resolve::errors::ResolutionError;
 use crate::resolve::scope::{ColumnRef, SelectedColumn};
-use crate::resolve::{Resolver, ScopeType};
+use crate::resolve::{ResolutionContext, ScopeType};
 use crate::schema::SchemaProvider;
 use sqlparser::ast::{Expr, Ident, Select, SelectItem, SelectItemQualifiedWildcardKind};
 use std::collections::HashSet;
 
-impl<'a, T: SchemaProvider> Resolver<T> {
+impl<'r, T: SchemaProvider> ResolutionContext<'r, T> {
     pub(crate) fn resolve_select(
         &mut self,
         select: &mut Select,
@@ -22,7 +22,7 @@ impl<'a, T: SchemaProvider> Resolver<T> {
 
         // WHERE
         if let Some(selection) = &mut select.selection {
-            self.resolve_expr(selection, &mut None)?;
+            self.resolve_expr(selection)?;
         }
 
         // SELECT items
@@ -36,12 +36,13 @@ impl<'a, T: SchemaProvider> Resolver<T> {
                         _ => {expr.to_string()}
                     };
 
-                    let mut accumulator: HashSet<ColumnRef> = HashSet::new();
-                    self.resolve_expr(expr, &mut Some(&mut accumulator))?;
+                    self.push_accumulator();
+                    self.resolve_expr(expr)?;
+                    let dependencies = self.pop_accumulator();
 
                     self.active_scope().selected_columns.push(SelectedColumn{
                         name: outer_name,
-                        dependencies: accumulator,
+                        dependencies,
                     });
 
                     resolved_items.push(SelectItem::UnnamedExpr(expr.clone()));
@@ -49,12 +50,13 @@ impl<'a, T: SchemaProvider> Resolver<T> {
                 SelectItem::ExprWithAlias { expr, alias} => {
                     let outer_name = alias.value.clone();
 
-                    let mut accumulator: HashSet<ColumnRef> = HashSet::new();
-                    self.resolve_expr(expr, &mut Some(&mut accumulator))?;
+                    self.push_accumulator();
+                    self.resolve_expr(expr)?;
+                    let dependencies = self.pop_accumulator();
 
                     self.active_scope().selected_columns.push(SelectedColumn{
                         name: outer_name.clone(),
-                        dependencies: accumulator,
+                        dependencies,
                     });
 
                     resolved_items.push(SelectItem::ExprWithAlias { expr: expr.clone(), alias: alias.clone() });
@@ -66,15 +68,15 @@ impl<'a, T: SchemaProvider> Resolver<T> {
                             let expanded_columns = self.resolve_wildcard(Some(obj_name), Some(options))?;
 
                             for column in expanded_columns {
-                                let mut accumulator: HashSet<ColumnRef> = HashSet::with_capacity(1);
-                                accumulator.insert(ColumnRef {
+                                let mut dependencies: HashSet<ColumnRef> = HashSet::with_capacity(1);
+                                dependencies.insert(ColumnRef {
                                     source_name: column.0.clone(),
                                     name: column.1.clone(),
                                 });
 
                                 self.active_scope().selected_columns.push(SelectedColumn{
                                     name: column.1.clone(),
-                                    dependencies: accumulator
+                                    dependencies,
                                 });
 
                                 resolved_items.push(
@@ -93,15 +95,15 @@ impl<'a, T: SchemaProvider> Resolver<T> {
                     let expanded_columns = self.resolve_wildcard(None, Some(options))?;
 
                     for column in expanded_columns {
-                        let mut accumulator: HashSet<ColumnRef> = HashSet::with_capacity(1);
-                        accumulator.insert(ColumnRef {
+                        let mut dependencies: HashSet<ColumnRef> = HashSet::with_capacity(1);
+                        dependencies.insert(ColumnRef {
                             source_name: column.0.clone(),
                             name: column.1.clone(),
                         });
 
                         self.active_scope().selected_columns.push(SelectedColumn{
                             name: column.1.clone(),
-                            dependencies: accumulator
+                            dependencies,
                         });
 
                         resolved_items.push(
@@ -117,11 +119,11 @@ impl<'a, T: SchemaProvider> Resolver<T> {
 
         // HAVING
         if let Some(having) = &mut select.having {
-            self.resolve_expr(having, &mut None)?;
+            self.resolve_expr(having)?;
         }
         // LATERAL VIEWs
         for lateral in &mut select.lateral_views {
-            self.resolve_expr(&mut lateral.lateral_view, &mut None)?;
+            self.resolve_expr(&mut lateral.lateral_view)?;
         }
 
         if create_scope {
@@ -137,5 +139,5 @@ impl<'a, T: SchemaProvider> Resolver<T> {
 mod tests {
     use super::*;
 
-    
+
 }

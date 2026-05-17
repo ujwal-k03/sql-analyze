@@ -1,10 +1,11 @@
 use crate::resolve::errors::ResolutionError;
 use crate::resolve::scope::sources::Source;
-use crate::resolve::Resolver;
+use crate::resolve::scope::ColumnRef;
+use crate::resolve::ResolutionContext;
 use crate::schema::SchemaProvider;
 use sqlparser::ast::{ObjectName, WildcardAdditionalOptions};
 
-impl<'a, T: SchemaProvider> Resolver<T> {
+impl<'r, T: SchemaProvider> ResolutionContext<'r, T> {
     pub(crate) fn resolve_wildcard(
         &mut self,
         qualifier: Option<&ObjectName>,
@@ -58,9 +59,16 @@ impl<'a, T: SchemaProvider> Resolver<T> {
         }
 
         if matched_count == 0 {
-            Err(ResolutionError::TableNotFound(qualifier.unwrap().to_string()))
-        } else {
-            Ok(expanded_columns)
+            return Err(ResolutionError::TableNotFound(qualifier.unwrap().to_string()));
         }
+
+        for (src, name) in &expanded_columns {
+            self.record_column(ColumnRef {
+                source_name: src.clone(),
+                name: name.clone(),
+            });
+        }
+
+        Ok(expanded_columns)
     }
 }

@@ -16,7 +16,7 @@ pub struct ColumnRef {
     pub source_name: String
 }
 
-#[derive(Copy, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub enum ScopeType {
     Boundary,
     Root,

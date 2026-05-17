@@ -1,9 +1,9 @@
 use crate::resolve::errors::ResolutionError;
-use crate::resolve::{Resolver, ScopeId, ScopeType};
+use crate::resolve::{ResolutionContext, ScopeId, ScopeType};
 use crate::schema::SchemaProvider;
 use sqlparser::ast::{Cte, OrderBy, OrderByKind, Query, SetExpr};
 
-impl<'a, T: SchemaProvider> Resolver<T> {
+impl<'r, T: SchemaProvider> ResolutionContext<'r, T> {
     pub(crate) fn resolve_query(
         &mut self,
         query: &mut Query,
@@ -110,17 +110,17 @@ impl<'a, T: SchemaProvider> Resolver<T> {
             OrderByKind::All(_) => {}
             OrderByKind::Expressions(order_by_exprs) => {
                 for order_by_expr in order_by_exprs {
-                    self.resolve_expr(&mut order_by_expr.expr, &mut None)?;
+                    self.resolve_expr(&mut order_by_expr.expr)?;
 
                     if let Some(with_fill) = &mut order_by_expr.with_fill {
                         if let Some(from) = &mut with_fill.from {
-                            self.resolve_expr(from, &mut None)?;
+                            self.resolve_expr(from)?;
                         }
                         if let Some(to) = &mut with_fill.to {
-                            self.resolve_expr(to, &mut None)?;
+                            self.resolve_expr(to)?;
                         }
                         if let Some(step) = &mut with_fill.step {
-                            self.resolve_expr(step, &mut None)?;
+                            self.resolve_expr(step)?;
                         }
                     }
                 }
@@ -130,9 +130,9 @@ impl<'a, T: SchemaProvider> Resolver<T> {
         if let Some(interpolate) = &mut order_by.interpolate {
             if let Some(exprs) = &mut interpolate.exprs {
                 for expr in exprs {
-                    self.resolve_col(&expr.column, &[], &mut None)?;
+                    self.resolve_col(&expr.column, &[])?;
                     if let Some(expr) = &mut expr.expr {
-                        self.resolve_expr(expr, &mut None)?;
+                        self.resolve_expr(expr)?;
                     }
                 }
             }
