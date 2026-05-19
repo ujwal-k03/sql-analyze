@@ -110,8 +110,15 @@ impl<'r, T: SchemaProvider> ResolutionContext<'r, T> {
             OrderByKind::All(_) => {}
             OrderByKind::Expressions(order_by_exprs) => {
                 for order_by_expr in order_by_exprs {
+                    // Push an accumulator before resolution so we track all columns used
+                    // in the ORDER BY in sort_columns
+                    self.push_accumulator();
                     self.resolve_expr(&mut order_by_expr.expr)?;
+                    let deps = self.pop_accumulator();
+                    self.active_scope().sort_columns.extend(deps);
 
+
+                    // TODO: Should with_fill also be included during accumulation?
                     if let Some(with_fill) = &mut order_by_expr.with_fill {
                         if let Some(from) = &mut with_fill.from {
                             self.resolve_expr(from)?;
@@ -127,6 +134,7 @@ impl<'r, T: SchemaProvider> ResolutionContext<'r, T> {
             }
         }
 
+        // TODO: Same here - should interpolate also be included in accumulation?
         if let Some(interpolate) = &mut order_by.interpolate {
             if let Some(exprs) = &mut interpolate.exprs {
                 for expr in exprs {

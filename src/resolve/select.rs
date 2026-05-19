@@ -2,7 +2,7 @@ use crate::resolve::errors::ResolutionError;
 use crate::resolve::scope::{ColumnRef, SelectedColumn};
 use crate::resolve::{ResolutionContext, ScopeType};
 use crate::schema::SchemaProvider;
-use sqlparser::ast::{Expr, Ident, Select, SelectItem, SelectItemQualifiedWildcardKind};
+use sqlparser::ast::{Expr, GroupByExpr, GroupByWithModifier, Ident, Select, SelectItem, SelectItemQualifiedWildcardKind};
 use std::collections::HashSet;
 
 impl<'r, T: SchemaProvider> ResolutionContext<'r, T> {
@@ -22,7 +22,10 @@ impl<'r, T: SchemaProvider> ResolutionContext<'r, T> {
 
         // WHERE
         if let Some(selection) = &mut select.selection {
+            self.push_accumulator();
             self.resolve_expr(selection)?;
+            let deps = self.pop_accumulator();
+            self.active_scope().filter_columns.extend(deps);
         }
 
         // SELECT items
@@ -117,9 +120,15 @@ impl<'r, T: SchemaProvider> ResolutionContext<'r, T> {
         }
         select.projection = resolved_items;
 
-        // HAVING
+        // GROUP BY
+        self.resolve_group_by(&mut select.group_by)?;
+
+        // HAVING, post-aggregation filter, classified alongside WHERE
         if let Some(having) = &mut select.having {
+            self.push_accumulator();
             self.resolve_expr(having)?;
+            let deps = self.pop_accumulator();
+            self.active_scope().filter_columns.extend(deps);
         }
         // LATERAL VIEWs
         for lateral in &mut select.lateral_views {
@@ -131,6 +140,47 @@ impl<'r, T: SchemaProvider> ResolutionContext<'r, T> {
         }
 
         // TODO: Choosing to skip the rest for now. Maybe revisit later. :0
+        Ok(())
+    }
+
+    fn resolve_group_by(
+        &mut self,
+        group_by: &mut GroupByExpr,
+    ) -> Result<(), ResolutionError> {
+        match group_by {
+            GroupByExpr::All(modifiers) => {
+                self.resolve_group_by_modifiers(modifiers)?;
+            }
+            GroupByExpr::Expressions(exprs, modifiers) => {
+                for expr in exprs {
+                    self.push_accumulator();
+                    self.resolve_expr(expr)?;
+                    let deps = self.pop_accumulator();
+                    self.active_scope().group_by_columns.extend(deps);
+                }
+                self.resolve_group_by_modifiers(modifiers)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_group_by_modifiers(
+        &mut self,
+        modifiers: &mut [GroupByWithModifier],
+    ) -> Result<(), ResolutionError> {
+        for modifier in modifiers {
+            match modifier {
+                GroupByWithModifier::Rollup
+                | GroupByWithModifier::Cube
+                | GroupByWithModifier::Totals => {}
+                GroupByWithModifier::GroupingSets(expr) => {
+                    self.push_accumulator();
+                    self.resolve_expr(expr)?;
+                    let deps = self.pop_accumulator();
+                    self.active_scope().group_by_columns.extend(deps);
+                }
+            }
+        }
         Ok(())
     }
 }
